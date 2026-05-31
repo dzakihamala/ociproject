@@ -45,7 +45,7 @@ export function AdminPage() {
   async function loadTeachers() {
     try {
       const data = await adminFetch('/api/admin/teachers');
-      setTeachers(data.teachers || []);
+      setTeachers(data.data || []);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Gagal memuat', 'error');
     }

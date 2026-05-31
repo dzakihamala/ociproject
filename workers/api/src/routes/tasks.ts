@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env';
 import { requireAuth } from '../lib/auth';
 import { generateId, generateUniqueFileName } from '../lib/crypto';
+import { paginationParams } from '../lib/pagination';
 import { deleteSubmissionR2Files, r2KeyFromUrl } from '../lib/r2';
 
 const tasks = new Hono<{ Bindings: Env }>();
@@ -9,12 +10,15 @@ const tasks = new Hono<{ Bindings: Env }>();
 tasks.get('/api/tasks', async (c) => {
   const payload = await requireAuth(c);
   if (!payload) return c.json({ error: 'Unauthorized' }, 401);
+  const { limit, offset } = paginationParams(c);
+  const totalRow = await c.env.DB.prepare(
+    'SELECT COUNT(*) as n FROM tasks WHERE teacher_id = ?',
+  ).bind(payload.sub).first<{ n: number }>();
+  const total = totalRow?.n ?? 0;
   const result = await c.env.DB.prepare(
-    'SELECT * FROM tasks WHERE teacher_id = ? ORDER BY created_at DESC',
-  )
-    .bind(payload.sub)
-    .all();
-  return c.json({ tasks: result.results });
+    'SELECT * FROM tasks WHERE teacher_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+  ).bind(payload.sub, limit, offset).all();
+  return c.json({ data: result.results, total, limit, offset });
 });
 
 tasks.get('/api/tasks/code/:code/classes/:classId/students', async (c) => {
@@ -78,12 +82,15 @@ tasks.get('/api/tasks/:id/submissions', async (c) => {
     .bind(id, payload.sub)
     .first();
   if (!task) return c.json({ error: 'Tugas tidak ditemukan' }, 404);
+  const { limit, offset } = paginationParams(c);
+  const totalRow = await c.env.DB.prepare(
+    'SELECT COUNT(*) as n FROM submissions WHERE task_id = ?',
+  ).bind(id).first<{ n: number }>();
+  const total = totalRow?.n ?? 0;
   const result = await c.env.DB.prepare(
-    'SELECT * FROM submissions WHERE task_id = ? ORDER BY created_at DESC',
-  )
-    .bind(id)
-    .all();
-  return c.json({ submissions: result.results });
+    'SELECT * FROM submissions WHERE task_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+  ).bind(id, limit, offset).all();
+  return c.json({ data: result.results, total, limit, offset });
 });
 
 tasks.get('/api/tasks/:id', async (c) => {

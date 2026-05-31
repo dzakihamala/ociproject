@@ -166,14 +166,18 @@ export async function acquireSubmitSlot(
   const now = nowMs();
   await purgeExpired(env.DB, now);
 
-  const countRow = await env.DB.prepare(
-    'SELECT COUNT(*) as n FROM submit_slots WHERE task_id = ? AND expires_at >= ?',
-  )
-    .bind(taskId, now)
-    .first<{ n: number }>();
+  const slotId = crypto.randomUUID();
+  const expiresAt = now + SLOT_TTL_MS;
 
-  const active = countRow?.n ?? 0;
-  if (active >= MAX_CONCURRENT_PER_TASK) {
+  const result = await env.DB.prepare(
+    `INSERT INTO submit_slots (id, task_id, expires_at)
+     SELECT ?, ?, ?
+     WHERE (SELECT COUNT(*) FROM submit_slots WHERE task_id = ? AND expires_at >= ?) < ?`,
+  )
+    .bind(slotId, taskId, expiresAt, taskId, now, MAX_CONCURRENT_PER_TASK)
+    .run();
+
+  if (result.meta.changes === 0) {
     return {
       ok: false,
       retryAfterSec: 20,
@@ -181,12 +185,6 @@ export async function acquireSubmitSlot(
         'Banyak siswa sedang mengirim tugas bersamaan. Mohon tunggu — aplikasi akan mencoba lagi otomatis.',
     };
   }
-
-  const slotId = crypto.randomUUID();
-  const expiresAt = now + SLOT_TTL_MS;
-  await env.DB.prepare('INSERT INTO submit_slots (id, task_id, expires_at) VALUES (?, ?, ?)')
-    .bind(slotId, taskId, expiresAt)
-    .run();
 
   const release = async () => {
     await env.DB.prepare('DELETE FROM submit_slots WHERE id = ?').bind(slotId).run();

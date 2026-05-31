@@ -2,20 +2,26 @@ import { Hono } from 'hono';
 import type { Env } from '../env';
 import { requireAuth } from '../lib/auth';
 import { generateId } from '../lib/crypto';
+import { paginationParams } from '../lib/pagination';
 
 const classes = new Hono<{ Bindings: Env }>();
 
 classes.get('/api/classes', async (c) => {
   const teacher = await requireAuth(c);
   if (!teacher) return c.json({ error: 'Unauthorized' }, 401);
+  const { limit, offset } = paginationParams(c);
+  const totalRow = await c.env.DB.prepare(
+    'SELECT COUNT(*) as n FROM classes WHERE teacher_id = ?',
+  ).bind(teacher.sub).first<{ n: number }>();
+  const total = totalRow?.n ?? 0;
   const rows = await c.env.DB.prepare(
     `SELECT c.id, c.name, c.created_at, COUNT(s.id) as student_count
      FROM classes c LEFT JOIN students s ON s.class_id = c.id
-     WHERE c.teacher_id = ? GROUP BY c.id ORDER BY c.name`,
+     WHERE c.teacher_id = ? GROUP BY c.id ORDER BY c.name LIMIT ? OFFSET ?`,
   )
-    .bind(teacher.sub)
+    .bind(teacher.sub, limit, offset)
     .all();
-  return c.json({ classes: rows.results });
+  return c.json({ data: rows.results, total, limit, offset });
 });
 
 classes.post('/api/classes', async (c) => {
@@ -38,12 +44,17 @@ classes.get('/api/classes/:id/students', async (c) => {
     .bind(id, teacher.sub)
     .first();
   if (!cls) return c.json({ error: 'Kelas tidak ditemukan' }, 404);
+  const { limit, offset } = paginationParams(c);
+  const totalRow = await c.env.DB.prepare(
+    'SELECT COUNT(*) as n FROM students WHERE class_id = ?',
+  ).bind(id).first<{ n: number }>();
+  const total = totalRow?.n ?? 0;
   const rows = await c.env.DB.prepare(
-    'SELECT id, name, created_at FROM students WHERE class_id = ? ORDER BY name',
+    'SELECT id, name, created_at FROM students WHERE class_id = ? ORDER BY name LIMIT ? OFFSET ?',
   )
-    .bind(id)
+    .bind(id, limit, offset)
     .all();
-  return c.json({ students: rows.results });
+  return c.json({ data: rows.results, total, limit, offset });
 });
 
 classes.post('/api/classes/:id/students', async (c) => {

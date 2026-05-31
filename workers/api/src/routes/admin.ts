@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env';
 import { requireAdminAccess } from '../lib/auth';
 import { generateId, hashPassword } from '../lib/crypto';
+import { paginationParams } from '../lib/pagination';
 import { deleteSubmissionR2Files, r2KeyFromUrl } from '../lib/r2';
 
 const admin = new Hono<{ Bindings: Env }>();
@@ -9,10 +10,15 @@ const admin = new Hono<{ Bindings: Env }>();
 admin.get('/api/admin/teachers', async (c) => {
   const access = await requireAdminAccess(c);
   if (access) return access;
+  const { limit, offset } = paginationParams(c);
+  const totalRow = await c.env.DB.prepare(
+    'SELECT COUNT(*) as n FROM teachers',
+  ).first<{ n: number }>();
+  const total = totalRow?.n ?? 0;
   const result = await c.env.DB.prepare(
-    'SELECT id, email, created_at FROM teachers ORDER BY created_at DESC',
-  ).all();
-  return c.json({ teachers: result.results });
+    'SELECT id, email, created_at FROM teachers ORDER BY created_at DESC LIMIT ? OFFSET ?',
+  ).bind(limit, offset).all();
+  return c.json({ data: result.results, total, limit, offset });
 });
 
 admin.post('/api/admin/teachers', async (c) => {

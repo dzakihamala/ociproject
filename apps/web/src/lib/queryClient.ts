@@ -32,29 +32,29 @@ export const queryClient = new QueryClient({
 
 export async function fetchDashboard(): Promise<DashboardData> {
   const [t, c, s] = await Promise.all([
-    apiRequest<{ tasks: Task[] }>('/api/tasks'),
-    apiRequest<{ classes: ClassRow[] }>('/api/classes'),
+    apiRequest<{ data: Task[] }>('/api/tasks'),
+    apiRequest<{ data: ClassRow[] }>('/api/classes'),
     apiRequest<{ used_bytes: number }>('/api/storage/usage'),
   ]);
   return {
-    tasks: t.tasks || [],
-    classes: c.classes || [],
+    tasks: t.data || [],
+    classes: c.data || [],
     storage: s,
   };
 }
 
 export async function fetchClasses(): Promise<ClassRow[]> {
-  const data = await apiRequest<{ classes: ClassRow[] }>('/api/classes');
-  return data.classes || [];
+  const data = await apiRequest<{ data: ClassRow[] }>('/api/classes');
+  return data.data || [];
 }
 
 export async function fetchTaskDetail(id: string): Promise<TaskDetailData> {
   const [t, s] = await Promise.all([
     apiRequest<{ task: Task }>(`/api/tasks/${id}`),
-    apiRequest<{ submissions: Submission[] }>(`/api/tasks/${id}/submissions`),
+    apiRequest<{ data: Submission[] }>(`/api/tasks/${id}/submissions`),
   ]);
   if (!t.task) throw new Error('Tugas tidak ditemukan');
-  return { task: t.task, submissions: s.submissions || [] };
+  return { task: t.task, submissions: s.data || [] };
 }
 
 export async function fetchTaskByCode(code: string): Promise<Task> {
