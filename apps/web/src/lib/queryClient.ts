@@ -5,6 +5,7 @@ import type { ClassRow, Submission, Task } from '@/types';
 export const queryKeys = {
   dashboard: ['dashboard'] as const,
   classes: ['classes'] as const,
+  tasksAll: ['task'] as const,
   task: (id: string) => ['task', id] as const,
   taskByCode: (code: string) => ['task', 'code', code] as const,
 } as const;

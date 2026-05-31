@@ -84,7 +84,7 @@ export function DashboardPage() {
     mutationFn: async (fd: FormData) => apiRequest<{ task: Task }>('/api/tasks', { method: 'POST', body: fd }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
-      queryClient.invalidateQueries({ queryKey: ['task'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasksAll });
       queryClient.prefetchQuery({ queryKey: queryKeys.task(data.task.id), queryFn: () => fetchTaskDetail(data.task.id) });
       setShowCreate(false);
       navigate(`/detail/${data.task.id}`);
@@ -144,7 +144,7 @@ export function DashboardPage() {
             await apiRequest(`/api/tasks/${task.id}`, { method: 'DELETE' });
           }
           queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
-          queryClient.invalidateQueries({ queryKey: ['task'] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.tasksAll });
           showToast('Semua tugas berhasil dihapus!', 'success');
         }, 'Menghapus semua tugas...'),
     );

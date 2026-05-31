@@ -8,7 +8,6 @@ const MAX_PER_IP_PER_TASK_PER_MIN = 12;
 const MAX_PER_STUDENT_PER_TASK_PER_5MIN = 5;
 
 const SLOT_TTL_MS = 3 * 60 * 1000;
-const RATE_BUCKET_TTL_MS = 6 * 60 * 1000;
 
 let tablesReady: Promise<void> | null = null;
 
