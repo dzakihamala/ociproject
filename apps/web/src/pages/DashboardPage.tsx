@@ -11,6 +11,7 @@ import { ProcessingOverlay } from '../components/ProcessingOverlay';
 import { useToast } from '../context/ToastContext';
 import { downloadAllTasksZip } from '../lib/downloads';
 import { fetchDashboard, fetchTaskDetail, queryClient, queryKeys, type DashboardData } from '../lib/queryClient';
+import { StorageWarning } from '../components/StorageWarning';
 import type { Task } from '../types';
 import { formatDate } from '../types';
 
@@ -113,27 +114,6 @@ export function DashboardPage() {
 
   const totalBytes = storage?.used_bytes || 0;
   const usedMb = totalBytes / (1024 * 1024);
-  const pct = Math.min((usedMb / (10 * 1024)) * 100, 100);
-  let usedLabel = '0 KB';
-  if (totalBytes < 1024 * 1024) {
-    usedLabel = `${(totalBytes / 1024).toFixed(0)} KB`;
-  } else if (usedMb < 1024) {
-    usedLabel = `${usedMb.toFixed(1)} MB`;
-  } else {
-    usedLabel = `${(usedMb / 1024).toFixed(2)} GB`;
-  }
-  const storageWarning =
-    pct > 90
-      ? {
-          className: 'storage-warning danger',
-          html: '⚠️ <strong>Penyimpanan hampir penuh!</strong> Segera hapus tugas-tugas lama yang sudah tidak diperlukan. Buka detail tugas → klik tombol "Hapus" untuk menghapus tugas beserta seluruh file kiriman siswa.',
-        }
-      : pct > 70
-        ? {
-            className: 'storage-warning',
-            html: '💡 Penyimpanan mulai terbatas. Pertimbangkan untuk menghapus tugas-tugas lama yang sudah selesai agar ruang penyimpanan tetap tersedia.',
-          }
-        : null;
 
   function askConfirm(title: string, message: string, action: () => void) {
     setConfirm({ title, message, action });
@@ -195,22 +175,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {storage && (
-        <div id="storageBar" className="storage-bar">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-2)' }}>Penyimpanan</span>
-            <span id="storageText" style={{ fontSize: 12, color: 'var(--text-3)' }}>
-              {usedLabel} / 10 GB
-            </span>
-          </div>
-          <div className="storage-track">
-            <div id="storageFill" className={`storage-fill${pct > 90 ? ' danger' : pct > 70 ? ' warning' : ''}`} style={{ width: `${pct}%` }} />
-          </div>
-          {storageWarning && (
-            <div id="storageWarning" className={storageWarning.className} dangerouslySetInnerHTML={{ __html: storageWarning.html }} />
-          )}
-        </div>
-      )}
+      {storage && <StorageWarning usedMb={usedMb} />}
 
       <div style={{ marginBottom: 16, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-accent btn-inline" onClick={() => setShowCreate(true)}>
