@@ -1,23 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { API_BASE, apiForm } from '../api/client';
-import { AudioRecorder } from '../components/submit/AudioRecorder';
-import { FormatErrorModal } from '../components/submit/FormatErrorModal';
-import { MediaPreviews } from '../components/submit/MediaPreviews';
-import { MediaProcessingOverlay } from '../components/submit/MediaProcessingOverlay';
-import { MediaPreviewOverlay } from '../components/submit/MediaPreviewOverlay';
-import { StudentNameSearch } from '../components/submit/StudentNameSearch';
-import { UploadProgressOverlay, type UploadPhase } from '../components/submit/UploadProgressOverlay';
-import { useToast } from '../context/ToastContext';
+import { API_BASE, apiForm } from '@/api/client';
+import { AudioRecorder } from '@/components/submit/AudioRecorder';
+import { FormatErrorModal } from '@/components/submit/FormatErrorModal';
+import { MediaPreviews } from '@/components/submit/MediaPreviews';
+import { MediaProcessingOverlay } from '@/components/submit/MediaProcessingOverlay';
+import { MediaPreviewOverlay } from '@/components/submit/MediaPreviewOverlay';
+import { StudentNameSearch } from '@/components/submit/StudentNameSearch';
+import { UploadProgressOverlay, type UploadPhase } from '@/components/submit/UploadProgressOverlay';
+import { useToast } from '@/context/ToastContext';
 import {
   isMobileDevice,
   MAX_CAPTURED_MEDIA,
   processCapturedFile,
   validateMediaFile,
   type SubmissionMediaType,
-} from '../lib/media';
-import type { Task } from '../types';
-import { formatDate, safeExternalUrl } from '../types';
+} from '@/lib/media';
+import type { Task } from '@/types';
+import { formatDate, safeExternalUrl } from '@/types';
 
 type SuccessState = {
   studentName: string;

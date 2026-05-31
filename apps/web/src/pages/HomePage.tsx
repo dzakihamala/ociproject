@@ -1,11 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE, apiRequest, clearToken, getToken, setToken } from '../api/client';
-import { useToast } from '../context/ToastContext';
-import { saveTeacherLoginSession } from '../lib/contact';
-import { setAuthCached } from '../lib/authCache';
-import { fetchDashboard, fetchClasses, queryClient, queryKeys } from '../lib/queryClient';
+import { API_BASE, apiRequest, clearToken, getToken, setToken } from '@/api/client';
+import { useToast } from '@/context/ToastContext';
+import { saveTeacherLoginSession } from '@/lib/contact';
+import { setAuthCached } from '@/lib/authCache';
+import { fetchDashboard, fetchClasses, queryClient, queryKeys } from '@/lib/queryClient';
 
 export function HomePage() {
   const navigate = useNavigate();

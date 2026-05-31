@@ -1,9 +1,9 @@
 import { jsPDF } from 'jspdf';
 import JSZip from 'jszip';
-import { API_BASE, apiRequest, getToken } from '../api/client';
-import { extensionFromMimeType, type SubmissionMediaType } from '../lib/media';
-import type { Submission, Task } from '../types';
-import { parseFileUrls, safeExternalUrl } from '../types';
+import { API_BASE, apiRequest, getToken } from '@/api/client';
+import { extensionFromMimeType, type SubmissionMediaType } from '@/lib/media';
+import type { Submission, Task } from '@/types';
+import { parseFileUrls, safeExternalUrl } from '@/types';
 
 export type MediaGroup = {
   name: string;

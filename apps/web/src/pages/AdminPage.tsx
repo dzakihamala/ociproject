@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { API_BASE } from '../api/client';
-import { useToast } from '../context/ToastContext';
+import { API_BASE } from '@/api/client';
+import { useToast } from '@/context/ToastContext';
 
 type Teacher = { id: string; email: string; created_at: string };
 

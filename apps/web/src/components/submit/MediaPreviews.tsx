@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { SubmissionMediaType } from '../../lib/media';
+import type { SubmissionMediaType } from '@/lib/media';
 import { MediaPreviewOverlay } from './MediaPreviewOverlay';
 
 type Props = {

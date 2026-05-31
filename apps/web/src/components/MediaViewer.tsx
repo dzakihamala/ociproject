@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import type { MediaGroup } from '../lib/downloads';
-import { safeExternalUrl } from '../types';
+import type { MediaGroup } from '@/lib/downloads';
+import { safeExternalUrl } from '@/types';
 
 type Props = {
   groups: MediaGroup[];

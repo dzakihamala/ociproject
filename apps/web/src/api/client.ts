@@ -1,5 +1,5 @@
-import { clearTeacherLoginSession } from '../lib/contact';
-import { clearAuthCache } from '../lib/authCache';
+import { clearTeacherLoginSession } from '@/lib/contact';
+import { clearAuthCache } from '@/lib/authCache';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 

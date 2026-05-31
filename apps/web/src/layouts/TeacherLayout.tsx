@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { clearToken } from '../api/client';
-import { clearAuthCache } from '../lib/authCache';
-import { buildAdminWhatsAppUrl } from '../lib/contact';
-import { fetchClasses, fetchDashboard, queryClient, queryKeys } from '../lib/queryClient';
+import { clearToken } from '@/api/client';
+import { clearAuthCache } from '@/lib/authCache';
+import { buildAdminWhatsAppUrl } from '@/lib/contact';
+import { fetchClasses, fetchDashboard, queryClient, queryKeys } from '@/lib/queryClient';
 
 export function TeacherLayout() {
   useEffect(() => {

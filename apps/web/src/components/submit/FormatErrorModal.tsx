@@ -1,5 +1,5 @@
-import type { SubmissionMediaType } from '../../lib/media';
-import { FORMAT_TIPS } from '../../lib/media';
+import type { SubmissionMediaType } from '@/lib/media';
+import { FORMAT_TIPS } from '@/lib/media';
 
 type Props = {
   open: boolean;

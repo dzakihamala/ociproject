@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { apiRequest, clearToken, getToken } from '../api/client';
-import { isAuthCached, setAuthCached } from '../lib/authCache';
+import { apiRequest, clearToken, getToken } from '@/api/client';
+import { isAuthCached, setAuthCached } from '@/lib/authCache';
 
 async function checkAuth() {
   const data = await apiRequest<{ valid: boolean }>('/api/auth/check', { skipSessionReset: true });

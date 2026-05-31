@@ -4,16 +4,16 @@ import { Indonesian } from 'flatpickr/dist/l10n/id.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import 'flatpickr/dist/flatpickr.min.css';
-import { apiRequest } from '../api/client';
-import { ClassTargetPicker } from '../components/ClassTargetPicker';
-import { ConfirmModal } from '../components/ConfirmModal';
-import { ProcessingOverlay } from '../components/ProcessingOverlay';
-import { useToast } from '../context/ToastContext';
-import { downloadAllTasksZip } from '../lib/downloads';
-import { fetchDashboard, fetchTaskDetail, queryClient, queryKeys, type DashboardData } from '../lib/queryClient';
-import { StorageWarning } from '../components/StorageWarning';
-import type { Task } from '../types';
-import { formatDate } from '../types';
+import { apiRequest } from '@/api/client';
+import { ClassTargetPicker } from '@/components/ClassTargetPicker';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { ProcessingOverlay } from '@/components/ProcessingOverlay';
+import { useToast } from '@/context/ToastContext';
+import { downloadAllTasksZip } from '@/lib/downloads';
+import { fetchDashboard, fetchTaskDetail, queryClient, queryKeys, type DashboardData } from '@/lib/queryClient';
+import { StorageWarning } from '@/components/StorageWarning';
+import type { Task } from '@/types';
+import { formatDate } from '@/types';
 
 export function DashboardPage() {
   const navigate = useNavigate();

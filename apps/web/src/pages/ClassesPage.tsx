@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { apiRequest } from '../api/client';
-import { ConfirmModal } from '../components/ConfirmModal';
-import { useToast } from '../context/ToastContext';
-import { fetchClasses, queryClient, queryKeys } from '../lib/queryClient';
-import type { ClassRow, Student } from '../types';
+import { apiRequest } from '@/api/client';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { useToast } from '@/context/ToastContext';
+import { fetchClasses, queryClient, queryKeys } from '@/lib/queryClient';
+import type { ClassRow, Student } from '@/types';
 
 export function ClassesPage() {
   const { showToast } = useToast();

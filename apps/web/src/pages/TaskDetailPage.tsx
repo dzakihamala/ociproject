@@ -1,27 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { apiRequest } from '../api/client';
-import { ConfirmModal } from '../components/ConfirmModal';
-import { MediaViewer } from '../components/MediaViewer';
-import { ProcessingOverlay } from '../components/ProcessingOverlay';
-import { QrModal } from '../components/QrModal';
-import { useToast } from '../context/ToastContext';
+import { apiRequest } from '@/api/client';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { MediaViewer } from '@/components/MediaViewer';
+import { ProcessingOverlay } from '@/components/ProcessingOverlay';
+import { QrModal } from '@/components/QrModal';
+import { useToast } from '@/context/ToastContext';
 import { useQuery } from '@tanstack/react-query';
 import {
   buildDownloadIndex,
   downloadAllSubmissionsForTask,
   downloadStudentSubmission,
   type MediaGroup,
-} from '../lib/downloads';
-import { fetchTaskDetail, queryClient, queryKeys, removeTaskFromDashboardCache } from '../lib/queryClient';
+} from '@/lib/downloads';
+import { fetchTaskDetail, queryClient, queryKeys, removeTaskFromDashboardCache } from '@/lib/queryClient';
 import {
   type ClassRoster,
   computeNotSubmitted,
   filterSubmissionsByClass,
   splitSubmissions,
-} from '../lib/submissionStats';
-import type { Submission } from '../types';
-import { formatDate, safeExternalUrl } from '../types';
+} from '@/lib/submissionStats';
+import type { Submission } from '@/types';
+import { formatDate, safeExternalUrl } from '@/types';
 
 export function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();

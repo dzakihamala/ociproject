@@ -1,4 +1,4 @@
-import type { Submission } from '../types';
+import type { Submission } from '@/types';
 
 export type RosterStudent = { id: string; name: string };
 export type ClassRoster = { classId: string; className: string; students: RosterStudent[] };

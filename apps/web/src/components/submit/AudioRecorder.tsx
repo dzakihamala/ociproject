@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { formatTime, MAX_CAPTURED_MEDIA } from '../../lib/media';
-import { validateMediaFile } from '../../lib/media';
+import { formatTime, MAX_CAPTURED_MEDIA } from '@/lib/media';
+import { validateMediaFile } from '@/lib/media';
 import { FormatErrorModal } from './FormatErrorModal';
 
 type Props = {
