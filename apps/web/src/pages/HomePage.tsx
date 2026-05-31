@@ -1,11 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE, apiRequest, clearToken, getToken, setToken } from '@/api/client';
+import { apiRequest } from '@/api/client';
 import { useToast } from '@/context/ToastContext';
-import { saveTeacherLoginSession } from '@/lib/contact';
-import { setAuthCached } from '@/lib/authCache';
-import { fetchDashboard, fetchClasses, queryClient, queryKeys } from '@/lib/queryClient';
+import { AuthSession } from '@/lib/authSession';
+import { fetchDashboard, fetchClasses, fetchTaskByCode, queryClient, queryKeys } from '@/lib/queryClient';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -15,13 +14,11 @@ export function HomePage() {
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    const token = getToken();
+    const token = AuthSession.getToken();
     if (!token) return;
     apiRequest('/api/auth/check', { skipSessionReset: true })
-      .then(() => setAuthCached(true))
-      .catch(() => {
-        clearToken();
-      });
+      .then(() => AuthSession.confirmAuth())
+      .catch(() => AuthSession.revokeAuth());
   }, []);
 
   const loginMutation = useMutation({
@@ -32,10 +29,7 @@ export function HomePage() {
       });
     },
     onSuccess: (data) => {
-      setToken(data.token);
-      localStorage.setItem('teacher_id', data.teacher_id);
-      saveTeacherLoginSession(email.trim());
-      setAuthCached(true);
+      AuthSession.login(data.token, data.teacher_id, email.trim());
       queryClient.prefetchQuery({ queryKey: queryKeys.dashboard, queryFn: fetchDashboard });
       queryClient.prefetchQuery({ queryKey: queryKeys.classes, queryFn: fetchClasses });
       navigate('/dashboard');
@@ -52,15 +46,10 @@ export function HomePage() {
       return;
     }
     try {
-      const res = await fetch(`${API_BASE}/api/tasks/code/${trimmed}`);
-      const data = await res.json();
-      if (!res.ok || !data.task) {
-        showToast('Kode tugas tidak ditemukan.', 'error');
-        return;
-      }
+      await fetchTaskByCode(trimmed);
       navigate(`/kumpul?code=${trimmed}`);
     } catch {
-      showToast('Gagal menghubungi server.', 'error');
+      showToast('Kode tugas tidak ditemukan.', 'error');
     }
   }
 

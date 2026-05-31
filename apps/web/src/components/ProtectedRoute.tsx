@@ -1,29 +1,29 @@
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
-import { apiRequest, clearToken, getToken } from '@/api/client';
-import { isAuthCached, setAuthCached } from '@/lib/authCache';
+import { apiRequest } from '@/api/client';
+import { AuthSession } from '@/lib/authSession';
 
 async function checkAuth() {
   const data = await apiRequest<{ valid: boolean }>('/api/auth/check', { skipSessionReset: true });
   if (!data.valid) throw new Error('Unauthorized');
-  setAuthCached(true);
+  AuthSession.confirmAuth();
   return data;
 }
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const token = getToken();
+  const token = AuthSession.getToken();
 
   const { status } = useQuery({
     queryKey: ['auth'],
     queryFn: checkAuth,
-    enabled: !!token && !isAuthCached(),
+    enabled: !!token && !AuthSession.isAuthenticated(),
     staleTime: 5 * 60_000,
   });
 
   if (!token) return <Navigate to="/" replace />;
 
-  if (isAuthCached()) {
+  if (AuthSession.isAuthenticated()) {
     return children;
   }
 
@@ -36,8 +36,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (status === 'error') {
-    clearToken();
-    setAuthCached(false);
+    AuthSession.revokeAuth();
     return <Navigate to="/" replace />;
   }
 

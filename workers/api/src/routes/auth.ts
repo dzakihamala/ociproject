@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
+import type { AuthContext, teacherAuth, requireTeacher } from '../lib/auth';
 import type { Env } from '../env';
-import { requireAuth } from '../lib/auth';
 import { generateId, hashPassword, signJWT, verifyPassword } from '../lib/crypto';
 
 const auth = new Hono<{ Bindings: Env }>();
 
-auth.post('/api/auth/login', async (c) => {
+auth.post('/login', async (c) => {
   try {
     const { email, password } = await c.req.json<{ email: string; password: string }>();
     if (!email || !password) return c.json({ error: 'Email dan password wajib diisi' }, 400);
@@ -37,13 +37,13 @@ auth.post('/api/auth/login', async (c) => {
   }
 });
 
-auth.get('/api/auth/check', async (c) => {
-  const payload = await requireAuth(c);
+auth.get('/check', async (c) => {
+  const payload = c.get('teacher');
   if (!payload) return c.json({ error: 'Unauthorized' }, 401);
   return c.json({ valid: true, teacher_id: payload.sub });
 });
 
-auth.post('/api/setup/create-teacher', async (c) => {
+auth.post('/setup/create-teacher', async (c) => {
   try {
     const { email, password, setup_key } = await c.req.json<{
       email: string;

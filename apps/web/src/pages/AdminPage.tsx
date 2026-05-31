@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { API_BASE } from '@/api/client';
+import { apiRequest } from '@/api/client';
 import { useToast } from '@/context/ToastContext';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 type Teacher = { id: string; email: string; created_at: string };
+
+function adminHeaders(): Record<string, string> {
+  return { 'X-Admin-Key': sessionStorage.getItem('admin_key') || '' };
+}
 
 export function AdminPage() {
   const { showToast } = useToast();
@@ -11,20 +16,7 @@ export function AdminPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  async function adminFetch(path: string, init?: RequestInit) {
-    const res = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Admin-Key': sessionStorage.getItem('admin_key') || '',
-        ...(init?.headers as Record<string, string>),
-      },
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Request gagal');
-    return data;
-  }
+  const [confirm, setConfirm] = useState<{ title: string; message: string; action: () => void } | null>(null);
 
   useEffect(() => {
     if (authed) loadTeachers();
@@ -33,7 +25,7 @@ export function AdminPage() {
   async function enter() {
     sessionStorage.setItem('admin_key', key);
     try {
-      await adminFetch('/api/admin/teachers');
+      await apiRequest<{ data: Teacher[] }>('/api/admin/teachers', { headers: adminHeaders() });
       setAuthed(true);
       showToast('Masuk berhasil.', 'success');
     } catch {
@@ -44,7 +36,7 @@ export function AdminPage() {
 
   async function loadTeachers() {
     try {
-      const data = await adminFetch('/api/admin/teachers');
+      const data = await apiRequest<{ data: Teacher[] }>('/api/admin/teachers', { headers: adminHeaders() });
       setTeachers(data.data || []);
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Gagal memuat', 'error');
@@ -54,8 +46,9 @@ export function AdminPage() {
   async function addTeacher(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await adminFetch('/api/admin/teachers', {
+      await apiRequest('/api/admin/teachers', {
         method: 'POST',
+        headers: adminHeaders(),
         body: JSON.stringify({ email: email.trim(), password }),
       });
       setEmail('');
@@ -67,15 +60,23 @@ export function AdminPage() {
     }
   }
 
-  async function removeTeacher(id: string, label: string) {
-    if (!confirm(`Hapus akun ${label}?`)) return;
-    try {
-      await adminFetch(`/api/admin/teachers/${id}`, { method: 'DELETE' });
-      await loadTeachers();
-      showToast('Akun dihapus.', 'success');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Gagal', 'error');
-    }
+  function askRemoveTeacher(id: string, label: string) {
+    setConfirm({
+      title: 'Hapus Akun',
+      message: `Hapus akun ${label}? Semua data guru ini akan terhapus permanen.`,
+      action: async () => {
+        try {
+          await apiRequest(`/api/admin/teachers/${id}`, {
+            method: 'DELETE',
+            headers: adminHeaders(),
+          });
+          await loadTeachers();
+          showToast('Akun dihapus.', 'success');
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : 'Gagal', 'error');
+        }
+      },
+    });
   }
 
   if (!authed) {
@@ -148,7 +149,7 @@ export function AdminPage() {
                     <td>{t.email}</td>
                     <td>{new Date(t.created_at).toLocaleDateString('id-ID')}</td>
                     <td>
-                      <button type="button" className="btn btn-outline btn-inline btn-sm" style={{ color: 'var(--error)' }} onClick={() => removeTeacher(t.id, t.email)}>
+                      <button type="button" className="btn btn-outline btn-inline btn-sm" style={{ color: 'var(--error)' }} onClick={() => askRemoveTeacher(t.id, t.email)}>
                         Hapus
                       </button>
                     </td>
@@ -159,6 +160,18 @@ export function AdminPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!confirm}
+        title={confirm?.title || ''}
+        message={confirm?.message || ''}
+        onCancel={() => setConfirm(null)}
+        onConfirm={() => {
+          const action = confirm?.action;
+          setConfirm(null);
+          action?.();
+        }}
+      />
     </div>
   );
 }

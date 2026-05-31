@@ -1,15 +1,15 @@
 import { Hono } from 'hono';
 import type { Env } from '../env';
-import { requireAuth } from '../lib/auth';
 import { generateId, generateUniqueFileName } from '../lib/crypto';
 import { paginationParams } from '../lib/pagination';
-import { deleteSubmissionR2Files, r2KeyFromUrl } from '../lib/r2';
+import { cleanupTask } from '../lib/cascade';
 
 const tasks = new Hono<{ Bindings: Env }>();
 
-tasks.get('/api/tasks', async (c) => {
-  const payload = await requireAuth(c);
-  if (!payload) return c.json({ error: 'Unauthorized' }, 401);
+// ── Authenticated routes ──
+
+tasks.get('/', async (c) => {
+  const payload = c.get('teacher');
   const { limit, offset } = paginationParams(c);
   const totalRow = await c.env.DB.prepare(
     'SELECT COUNT(*) as n FROM tasks WHERE teacher_id = ?',
@@ -21,62 +21,21 @@ tasks.get('/api/tasks', async (c) => {
   return c.json({ data: result.results, total, limit, offset });
 });
 
-tasks.get('/api/tasks/code/:code/classes/:classId/students', async (c) => {
-  const { code, classId } = c.req.param();
-  const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE task_code = ?')
-    .bind(code)
-    .first<{ id: string }>();
-  if (!task) return c.json({ error: 'Tugas tidak ditemukan' }, 404);
-  const link = await c.env.DB.prepare(
-    'SELECT 1 FROM task_classes WHERE task_id = ? AND class_id = ?',
-  )
-    .bind(task.id, classId)
-    .first();
-  if (!link) return c.json({ error: 'Kelas tidak terkait dengan tugas ini' }, 403);
-  const rows = await c.env.DB.prepare(
-    'SELECT id, name FROM students WHERE class_id = ? ORDER BY name',
-  )
-    .bind(classId)
-    .all();
-  return c.json({ students: rows.results });
-});
-
-tasks.get('/api/tasks/code/:code/classes', async (c) => {
-  const { code } = c.req.param();
-  const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE task_code = ?')
-    .bind(code)
-    .first<{ id: string }>();
-  if (!task) return c.json({ error: 'Tugas tidak ditemukan' }, 404);
-  const rows = await c.env.DB.prepare(
-    `SELECT c.id, c.name FROM classes c
-     JOIN task_classes tc ON c.id = tc.class_id
-     WHERE tc.task_id = ? ORDER BY c.name`,
-  )
-    .bind(task.id)
-    .all();
-  return c.json({ classes: rows.results });
-});
-
-tasks.get('/api/tasks/code/:code', async (c) => {
-  const { code } = c.req.param();
-  const task = await c.env.DB.prepare(
-    `SELECT id, title, description, subject, deadline, file_url, task_code, submission_type, created_at
-     FROM tasks WHERE task_code = ?`,
-  )
-    .bind(code)
+tasks.get('/:id', async (c) => {
+  const payload = c.get('teacher');
+  const { id } = c.req.param();
+  const task = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ? AND teacher_id = ?')
+    .bind(id, payload.sub)
     .first();
   if (!task) return c.json({ error: 'Tugas tidak ditemukan' }, 404);
   const tc = await c.env.DB.prepare(
     'SELECT c.id, c.name FROM classes c JOIN task_classes tc ON c.id = tc.class_id WHERE tc.task_id = ?',
-  )
-    .bind((task as { id: string }).id)
-    .all();
+  ).bind(id).all();
   return c.json({ task: { ...task, classes: tc.results || [] } });
 });
 
-tasks.get('/api/tasks/:id/submissions', async (c) => {
-  const payload = await requireAuth(c);
-  if (!payload) return c.json({ error: 'Unauthorized' }, 401);
+tasks.get('/:id/submissions', async (c) => {
+  const payload = c.get('teacher');
   const { id } = c.req.param();
   const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE id = ? AND teacher_id = ?')
     .bind(id, payload.sub)
@@ -93,25 +52,8 @@ tasks.get('/api/tasks/:id/submissions', async (c) => {
   return c.json({ data: result.results, total, limit, offset });
 });
 
-tasks.get('/api/tasks/:id', async (c) => {
-  const payload = await requireAuth(c);
-  if (!payload) return c.json({ error: 'Unauthorized' }, 401);
-  const { id } = c.req.param();
-  const task = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ? AND teacher_id = ?')
-    .bind(id, payload.sub)
-    .first();
-  if (!task) return c.json({ error: 'Tugas tidak ditemukan' }, 404);
-  const tc = await c.env.DB.prepare(
-    'SELECT c.id, c.name FROM classes c JOIN task_classes tc ON c.id = tc.class_id WHERE tc.task_id = ?',
-  )
-    .bind(id)
-    .all();
-  return c.json({ task: { ...task, classes: tc.results || [] } });
-});
-
-tasks.post('/api/tasks', async (c) => {
-  const payload = await requireAuth(c);
-  if (!payload) return c.json({ error: 'Unauthorized' }, 401);
+tasks.post('/', async (c) => {
+  const payload = c.get('teacher');
   try {
     const formData = await c.req.formData();
     const title = formData.get('title');
@@ -126,8 +68,10 @@ tasks.post('/api/tasks', async (c) => {
       return c.json({ error: 'Title, subject, dan deadline wajib diisi' }, 400);
     }
     let file_url: string | null = null;
+    let file_bytes = 0;
     if (file && typeof file === 'object' && 'size' in file && (file as File).size > 0) {
       const f = file as File;
+      file_bytes = f.size;
       const fileName = generateUniqueFileName(f.name || 'attachment');
       await c.env.TASK_FILES.put(fileName, await f.arrayBuffer(), {
         httpMetadata: { contentType: f.type || 'application/octet-stream' },
@@ -140,10 +84,10 @@ tasks.post('/api/tasks', async (c) => {
       task_code = String(Math.floor(1e5 + Math.random() * 9e5));
       try {
         await c.env.DB.prepare(
-          `INSERT INTO tasks (id, teacher_id, title, description, subject, deadline, file_url, task_code, submission_type)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO tasks (id, teacher_id, title, description, subject, deadline, file_url, task_code, submission_type, byte_size)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-          .bind(id, payload.sub, title, description, subject, deadline, file_url, task_code, submission_type)
+          .bind(id, payload.sub, title, description, subject, deadline, file_url, task_code, submission_type, file_bytes)
           .run();
         break;
       } catch {
@@ -162,52 +106,74 @@ tasks.post('/api/tasks', async (c) => {
       for (const cid of classIds) {
         const cls = await c.env.DB.prepare(
           'SELECT id FROM classes WHERE id = ? AND teacher_id = ?',
-        )
-          .bind(cid, payload.sub)
-          .first();
+        ).bind(cid, payload.sub).first();
         if (!cls) return c.json({ error: 'Kelas tidak valid atau bukan milik Anda' }, 400);
         await c.env.DB.prepare('INSERT INTO task_classes (task_id, class_id) VALUES (?, ?)')
-          .bind(id, cid)
-          .run();
+          .bind(id, cid).run();
       }
     }
     const task = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ?').bind(id).first();
     const tc = await c.env.DB.prepare(
       'SELECT c.id, c.name FROM classes c JOIN task_classes tc ON c.id = tc.class_id WHERE tc.task_id = ?',
-    )
-      .bind(id)
-      .all();
+    ).bind(id).all();
     return c.json({ task: { ...task, classes: tc.results || [] } }, 201);
   } catch {
     return c.json({ error: 'Gagal membuat tugas' }, 500);
   }
 });
 
-tasks.delete('/api/tasks/:id', async (c) => {
-  const payload = await requireAuth(c);
-  if (!payload) return c.json({ error: 'Unauthorized' }, 401);
+tasks.delete('/:id', async (c) => {
+  const payload = c.get('teacher');
   const { id } = c.req.param();
-  const task = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ? AND teacher_id = ?')
+  const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE id = ? AND teacher_id = ?')
     .bind(id, payload.sub)
-    .first<{ file_url: string | null }>();
+    .first();
   if (!task) return c.json({ error: 'Tugas tidak ditemukan' }, 404);
-  const subs = await c.env.DB.prepare('SELECT file_url FROM submissions WHERE task_id = ?')
-    .bind(id)
-    .all<{ file_url: string }>();
-  for (const sub of subs.results ?? []) {
-    await deleteSubmissionR2Files(c.env.SUBMISSION_FILES, sub.file_url);
-  }
-  if (task.file_url) {
-    try {
-      await c.env.TASK_FILES.delete(r2KeyFromUrl(task.file_url));
-    } catch {
-      /* ignore */
-    }
-  }
-  await c.env.DB.prepare('DELETE FROM task_classes WHERE task_id = ?').bind(id).run();
-  await c.env.DB.prepare('DELETE FROM submissions WHERE task_id = ?').bind(id).run();
-  await c.env.DB.prepare('DELETE FROM tasks WHERE id = ? AND teacher_id = ?').bind(id, payload.sub).run();
+  await cleanupTask(c.env, id);
   return c.json({ success: true });
+});
+
+// ── Public routes ──
+
+tasks.get('/code/:code/classes/:classId/students', async (c) => {
+  const { code, classId } = c.req.param();
+  const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE task_code = ?')
+    .bind(code).first<{ id: string }>();
+  if (!task) return c.json({ error: 'Tugas tidak ditemukan' }, 404);
+  const link = await c.env.DB.prepare(
+    'SELECT 1 FROM task_classes WHERE task_id = ? AND class_id = ?',
+  ).bind(task.id, classId).first();
+  if (!link) return c.json({ error: 'Kelas tidak terkait dengan tugas ini' }, 403);
+  const rows = await c.env.DB.prepare(
+    'SELECT id, name FROM students WHERE class_id = ? ORDER BY name',
+  ).bind(classId).all();
+  return c.json({ students: rows.results });
+});
+
+tasks.get('/code/:code/classes', async (c) => {
+  const { code } = c.req.param();
+  const task = await c.env.DB.prepare('SELECT id FROM tasks WHERE task_code = ?')
+    .bind(code).first<{ id: string }>();
+  if (!task) return c.json({ error: 'Tugas tidak ditemukan' }, 404);
+  const rows = await c.env.DB.prepare(
+    `SELECT c.id, c.name FROM classes c
+     JOIN task_classes tc ON c.id = tc.class_id
+     WHERE tc.task_id = ? ORDER BY c.name`,
+  ).bind(task.id).all();
+  return c.json({ classes: rows.results });
+});
+
+tasks.get('/code/:code', async (c) => {
+  const { code } = c.req.param();
+  const task = await c.env.DB.prepare(
+    `SELECT id, title, description, subject, deadline, file_url, task_code, submission_type, created_at
+     FROM tasks WHERE task_code = ?`,
+  ).bind(code).first();
+  if (!task) return c.json({ error: 'Tugas tidak ditemukan' }, 404);
+  const tc = await c.env.DB.prepare(
+    'SELECT c.id, c.name FROM classes c JOIN task_classes tc ON c.id = tc.class_id WHERE tc.task_id = ?',
+  ).bind((task as { id: string }).id).all();
+  return c.json({ task: { ...task, classes: tc.results || [] } });
 });
 
 export default tasks;

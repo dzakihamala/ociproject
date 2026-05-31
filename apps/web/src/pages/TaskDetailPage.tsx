@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { apiRequest } from '@/api/client';
-import { ConfirmModal } from '@/components/ConfirmModal';
+import { useConfirmProcess } from '@/hooks/useConfirmProcess';
 import { MediaViewer } from '@/components/MediaViewer';
-import { ProcessingOverlay } from '@/components/ProcessingOverlay';
 import { QrModal } from '@/components/QrModal';
 import { useToast } from '@/context/ToastContext';
 import { useQuery } from '@tanstack/react-query';
@@ -38,8 +37,7 @@ export function TaskDetailPage() {
 
   const [qrOpen, setQrOpen] = useState(false);
   const [viewer, setViewer] = useState<{ groups: MediaGroup[]; type: 'image' | 'video' | 'audio' } | null>(null);
-  const [confirm, setConfirm] = useState<{ title: string; message: string; action: () => void } | null>(null);
-  const [processing, setProcessing] = useState<string | null>(null);
+  const { askConfirm, runProcessing, modals, setProcessing } = useConfirmProcess();
   const [roster, setRoster] = useState<ClassRoster[]>([]);
   const [classFilter, setClassFilter] = useState('all');
 
@@ -117,21 +115,6 @@ export function TaskDetailPage() {
   const shareLink = `${window.location.origin}/kumpul?code=${task.task_code}`;
   const submissionType = task.submission_type || 'image';
   const typeLabel = { image: '📷 Gambar', video: '🎥 Video', audio: '🎙️ Audio' }[submissionType];
-
-  function askConfirm(title: string, message: string, action: () => void) {
-    setConfirm({ title, message, action });
-  }
-
-  async function runProcessing(fn: () => Promise<void>, startMsg: string) {
-    setProcessing(startMsg);
-    try {
-      await fn();
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Gagal', 'error');
-    } finally {
-      setProcessing(null);
-    }
-  }
 
   function viewGroup(group: MediaGroup) {
     setViewer({ groups: [group], type: submissionType });
@@ -373,18 +356,7 @@ export function TaskDetailPage() {
 
       <QrModal open={qrOpen} url={shareLink} onClose={() => setQrOpen(false)} />
       {viewer && <MediaViewer groups={viewer.groups} type={viewer.type} onClose={() => setViewer(null)} />}
-      <ConfirmModal
-        open={!!confirm}
-        title={confirm?.title || ''}
-        message={confirm?.message || ''}
-        onCancel={() => setConfirm(null)}
-        onConfirm={() => {
-          const action = confirm?.action;
-          setConfirm(null);
-          action?.();
-        }}
-      />
-      <ProcessingOverlay open={!!processing} text={processing || ''} />
+      {modals}
     </>
   );
 }

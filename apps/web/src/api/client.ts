@@ -1,5 +1,4 @@
-import { clearTeacherLoginSession } from '@/lib/contact';
-import { clearAuthCache } from '@/lib/authCache';
+import { AuthSession } from '@/lib/authSession';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -24,20 +23,21 @@ export class ApiError extends Error {
   }
 }
 
+/** @deprecated Use AuthSession.getToken() instead. */
 export function getToken(): string | null {
-  return localStorage.getItem('auth_token');
+  return AuthSession.getToken();
 }
 
+/** @deprecated Use AuthSession.login() instead. */
 export function setToken(token: string) {
   localStorage.setItem('auth_token', token);
 }
 
 export function clearToken() {
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('teacher_id');
-  clearTeacherLoginSession();
-  clearAuthCache();
-  import('../lib/queryClient').then(({ queryClient }) => queryClient.clear());
+  AuthSession.logout();
+  if (window.location.pathname !== '/') {
+    window.location.href = '/';
+  }
 }
 
 export async function apiRequest<T = unknown>(

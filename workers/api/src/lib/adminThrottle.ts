@@ -1,48 +1,22 @@
 import type { Env } from '../env';
+import { clientIp } from './ip';
+import { checkRateLimit } from './rateLimiter';
 
 const MAX_ADMIN_PER_IP_PER_MIN = 10;
-const ADMIN_BUCKET_TTL_MS = 2 * 60 * 1000;
-
-function nowMs() {
-  return Date.now();
-}
 
 function minuteBucket() {
-  return Math.floor(nowMs() / 60_000);
-}
-
-function adminBucketKey(ip: string) {
-  return `admin:${ip}:${minuteBucket()}`;
+  return Math.floor(Date.now() / 60_000);
 }
 
 export async function checkAdminRateLimit(
   env: Env,
   ip: string,
 ): Promise<{ ok: true } | { ok: false; retryAfterSec: number }> {
-  const now = nowMs();
-  const bucketKey = adminBucketKey(ip);
-  const expiresAt = now + ADMIN_BUCKET_TTL_MS;
-
-  const row = await env.DB
-    .prepare('SELECT hits FROM submit_rate_buckets WHERE bucket_key = ?')
-    .bind(bucketKey)
-    .first<{ hits: number }>();
-
-  if (!row) {
-    await env.DB
-      .prepare('INSERT INTO submit_rate_buckets (bucket_key, hits, expires_at) VALUES (?, 1, ?)')
-      .bind(bucketKey, expiresAt)
-      .run();
-    return { ok: true };
-  }
-
-  if (row.hits >= MAX_ADMIN_PER_IP_PER_MIN) {
-    return { ok: false, retryAfterSec: 60 };
-  }
-
-  await env.DB
-    .prepare('UPDATE submit_rate_buckets SET hits = hits + 1 WHERE bucket_key = ?')
-    .bind(bucketKey)
-    .run();
-  return { ok: true };
+  return checkRateLimit(env.DB, `admin:${ip}:${minuteBucket()}`, {
+    prefix: 'admin',
+    limit: MAX_ADMIN_PER_IP_PER_MIN,
+    windowMs: 60_000,
+    ttlMs: 2 * 60_000,
+    retryAfterSec: 60,
+  });
 }

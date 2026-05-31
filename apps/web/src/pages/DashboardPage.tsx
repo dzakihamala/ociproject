@@ -6,8 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import 'flatpickr/dist/flatpickr.min.css';
 import { apiRequest } from '@/api/client';
 import { ClassTargetPicker } from '@/components/ClassTargetPicker';
-import { ConfirmModal } from '@/components/ConfirmModal';
-import { ProcessingOverlay } from '@/components/ProcessingOverlay';
+import { useConfirmProcess } from '@/hooks/useConfirmProcess';
 import { useToast } from '@/context/ToastContext';
 import { downloadAllTasksZip } from '@/lib/downloads';
 import { fetchDashboard, fetchTaskDetail, queryClient, queryKeys, type DashboardData } from '@/lib/queryClient';
@@ -36,8 +35,7 @@ export function DashboardPage() {
   const [submissionType, setSubmissionType] = useState<'image' | 'video' | 'audio'>('image');
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [attachment, setAttachment] = useState<File | null>(null);
-  const [confirm, setConfirm] = useState<{ title: string; message: string; action: () => void } | null>(null);
-  const [processing, setProcessing] = useState<string | null>(null);
+  const { askConfirm, runProcessing, modals, setProcessing } = useConfirmProcess();
   const deadlineRef = useRef<HTMLInputElement>(null);
   const fpRef = useRef<flatpickr.Instance | null>(null);
 
@@ -114,21 +112,6 @@ export function DashboardPage() {
 
   const totalBytes = storage?.used_bytes || 0;
   const usedMb = totalBytes / (1024 * 1024);
-
-  function askConfirm(title: string, message: string, action: () => void) {
-    setConfirm({ title, message, action });
-  }
-
-  async function runProcessing(fn: () => Promise<void>, startMsg: string) {
-    setProcessing(startMsg);
-    try {
-      await fn();
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Gagal', 'error');
-    } finally {
-      setProcessing(null);
-    }
-  }
 
   async function deleteAllTasks() {
     if (!tasks.length) {
@@ -297,18 +280,7 @@ export function DashboardPage() {
         </div>
       )}
 
-      <ConfirmModal
-        open={!!confirm}
-        title={confirm?.title || ''}
-        message={confirm?.message || ''}
-        onCancel={() => setConfirm(null)}
-        onConfirm={() => {
-          const action = confirm?.action;
-          setConfirm(null);
-          action?.();
-        }}
-      />
-      <ProcessingOverlay open={!!processing} text={processing || ''} />
+      {modals}
     </>
   );
 }

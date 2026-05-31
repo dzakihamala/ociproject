@@ -1,12 +1,11 @@
 import { Hono } from 'hono';
 import type { Env } from '../env';
-import { requireAuth } from '../lib/auth';
 import { resolveTeacherFileAccess } from '../lib/fileAccess';
 
 const files = new Hono<{ Bindings: Env }>();
 
-files.get('/api/files/blob', async (c) => {
-  const payload = await requireAuth(c);
+files.get('/blob', async (c) => {
+  const payload = c.get('teacher');
   if (!payload) return c.json({ error: 'Unauthorized' }, 401);
 
   const fileUrl = c.req.query('url');

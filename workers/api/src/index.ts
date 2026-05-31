@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env } from './env';
+import { teacherAuth, requireTeacher } from './lib/auth';
+import { requireAdmin } from './lib/auth';
 
 import auth from './routes/auth';
 import tasks from './routes/tasks';
@@ -23,13 +25,25 @@ app.use(
 
 app.get('/api/health', (c) => c.text('OK'));
 
-app.route('/', auth);
-app.route('/', tasks);
-app.route('/', classes);
-app.route('/', submissions);
-app.route('/', admin);
-app.route('/', files);
-app.route('/', storage);
+// ── Public routes ──
+app.route('/api/auth', auth);
+app.route('/api', submissions);
+
+// ── Teacher-authenticated routes (JWT required) ──
+app.use('/api/auth/check', teacherAuth);
+app.use('/api/tasks/*', teacherAuth, requireTeacher);
+app.use('/api/classes/*', teacherAuth, requireTeacher);
+app.use('/api/files/*', teacherAuth, requireTeacher);
+app.use('/api/storage/*', teacherAuth, requireTeacher);
+
+app.route('/api/tasks', tasks);
+app.route('/api/classes', classes);
+app.route('/api/files', files);
+app.route('/api/storage', storage);
+
+// ── Admin-authenticated routes (X-Admin-Key required) ──
+app.use('/api/admin/*', requireAdmin);
+app.route('/api/admin', admin);
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404));
 

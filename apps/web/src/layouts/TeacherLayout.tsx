@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { clearToken } from '@/api/client';
-import { clearAuthCache } from '@/lib/authCache';
+import { AuthSession } from '@/lib/authSession';
 import { buildAdminWhatsAppUrl } from '@/lib/contact';
 import { fetchClasses, fetchDashboard, queryClient, queryKeys } from '@/lib/queryClient';
 
@@ -41,9 +40,7 @@ export function TeacherLayout() {
             type="button"
             className="sidebar-link sidebar-logout"
             onClick={() => {
-              clearToken();
-              clearAuthCache();
-              queryClient.clear();
+              AuthSession.logout();
               window.location.href = '/';
             }}
           >

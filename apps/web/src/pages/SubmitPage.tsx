@@ -5,7 +5,7 @@ import { AudioRecorder } from '@/components/submit/AudioRecorder';
 import { FormatErrorModal } from '@/components/submit/FormatErrorModal';
 import { MediaPreviews } from '@/components/submit/MediaPreviews';
 import { MediaProcessingOverlay } from '@/components/submit/MediaProcessingOverlay';
-import { MediaPreviewOverlay } from '@/components/submit/MediaPreviewOverlay';
+import { SubmitSuccess } from '@/components/submit/SubmitSuccess';
 import { StudentNameSearch } from '@/components/submit/StudentNameSearch';
 import { UploadProgressOverlay, type UploadPhase } from '@/components/submit/UploadProgressOverlay';
 import { useToast } from '@/context/ToastContext';
@@ -50,8 +50,6 @@ export function SubmitPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('progress');
   const [uploadStatus, setUploadStatus] = useState('');
-  const [successPreview, setSuccessPreview] = useState<{ url: string; caption: string } | null>(null);
-
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
   const submissionType: SubmissionMediaType = (task?.submission_type as SubmissionMediaType) || 'image';
@@ -293,87 +291,16 @@ export function SubmitPage() {
   }
 
   if (success) {
-    const fileLabel = submissionType === 'image' ? 'Halaman' : submissionType === 'video' ? 'Video' : 'Audio';
     return (
-      <div className="container" style={{ maxWidth: 520, marginTop: 32 }}>
-        <div className="card">
-          <h2 style={{ color: 'var(--success)', marginBottom: 4 }}>Tugas Terkirim</h2>
-          <p style={{ marginBottom: 16 }}>
-            Tugas Anda telah berhasil dikirim ke guru.
-            {success.replaced ? ' Pengumpulan sebelumnya telah diganti dengan yang baru.' : ''}
-          </p>
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 2 }}>Tugas</div>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>{task.title}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>{task.subject}</div>
-            <div style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--text-2)', marginBottom: 12, flexWrap: 'wrap' }}>
-              <span>
-                Nama: <strong>{success.studentName}</strong>
-              </span>
-              <span>
-                Kelas: <strong>{success.studentClass}</strong>
-              </span>
-            </div>
-            {success.studentNote && (
-              <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12 }}>Catatan: {success.studentNote}</div>
-            )}
-          </div>
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-            <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 8 }}>
-              {fileLabel} yang dikirim ({success.fileUrls.length})
-            </div>
-            <div
-              style={
-                submissionType === 'image'
-                  ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 8 }
-                  : undefined
-              }
-            >
-              {success.fileUrls.map((url, i) => {
-                const safe = safeExternalUrl(url);
-                if (!safe) return null;
-                if (submissionType === 'image') {
-                  return (
-                    <div
-                      key={url}
-                      style={{ textAlign: 'center', cursor: 'pointer' }}
-                      onClick={() => setSuccessPreview({ url: safe, caption: `Halaman ${i + 1} dari ${success.fileUrls.length}` })}
-                    >
-                      <img src={safe} alt="" style={{ width: '100%', borderRadius: 4, border: '1px solid var(--border)' }} />
-                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>Halaman {i + 1}</div>
-                    </div>
-                  );
-                }
-                if (submissionType === 'video') {
-                  return (
-                    <div key={url} style={{ marginBottom: 12 }}>
-                      <video src={safe} controls style={{ width: '100%', borderRadius: 4, border: '1px solid var(--border)' }} />
-                      <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, textAlign: 'center' }}>
-                        Video {i + 1}
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <div key={url} style={{ marginBottom: 12, padding: 12, background: 'var(--bg)', borderRadius: 4, border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 6 }}>Audio {i + 1}</div>
-                    <audio src={safe} controls className="audio-player-inline" />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        {successPreview && (
-          <MediaPreviewOverlay
-            open
-            type="image"
-            url={successPreview.url}
-            caption={successPreview.caption}
-            onClose={() => setSuccessPreview(null)}
-          />
-        )}
-      </div>
+      <SubmitSuccess
+        task={task}
+        studentName={success.studentName}
+        studentClass={success.studentClass}
+        studentNote={success.studentNote}
+        fileUrls={success.fileUrls}
+        replaced={success.replaced}
+        submissionType={submissionType}
+      />
     );
   }
 

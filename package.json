@@ -9,7 +9,13 @@
     "dev": "npm run dev -w @tugas/web",
     "dev:api": "npm run dev -w @tugas/api",
     "build": "npm run build -w @tugas/web",
+    "typecheck": "npm run build -w @tugas/web",
+    "test": "echo 'No tests configured yet' && exit 0",
     "deploy:api": "npm run deploy -w @tugas/api",
-    "deploy:web": "npm run build -w @tugas/web"
+    "deploy:web": "npm run build -w @tugas/web",
+    "sandcastle": "npx tsx .sandcastle/main.mts"
+  },
+  "devDependencies": {
+    "@ai-hero/sandcastle": "^0.7.0"
   }
 }
