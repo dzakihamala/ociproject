@@ -1,0 +1,8 @@
+node_modules
+dist
+.wrangler
+.dev.vars
+workers/api/.dev.vars
+workers/api/.wrangler
+*.local
+.DS_Store

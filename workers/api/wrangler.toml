@@ -1,0 +1,25 @@
+name = "tugas-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tugas-db"
+# Ganti dengan ID D1 production Anda: npx wrangler d1 list
+database_id = "a0848265-10f4-4a79-97e9-28786f01d296"
+
+[[r2_buckets]]
+binding = "TASK_FILES"
+bucket_name = "task-files"
+
+[[r2_buckets]]
+binding = "SUBMISSION_FILES"
+bucket_name = "submission-files"
+
+[vars]
+# URL publik bucket R2 (sama seperti deploy lama)
+TASK_FILES_PUBLIC_URL = "https://pub-f215e0081b6042c8a55008084856e34f.r2.dev"
+SUBMISSION_FILES_PUBLIC_URL = "https://pub-1ae74869096142c584b3a7bbf7894354.r2.dev"
+
+# Secrets untuk production: npx wrangler secret put JWT_SECRET
+# Untuk dev lokal, salin .dev.vars.example → .dev.vars

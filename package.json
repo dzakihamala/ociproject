@@ -1,0 +1,15 @@
+{
+  "name": "tugas-app",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "workers/api"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @tugas/web",
+    "dev:api": "npm run dev -w @tugas/api",
+    "build": "npm run build -w @tugas/web",
+    "deploy:api": "npm run deploy -w @tugas/api",
+    "deploy:web": "npm run build -w @tugas/web"
+  }
+}

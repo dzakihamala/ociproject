@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail Tugas</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header mt-2" style="justify-content: flex-end;">
+            <button id="btnDeleteTask" class="btn btn-danger btn-inline">Hapus</button>
+        </div>
+
+        <div class="card">
+            <h1 id="taskTitle">Memuat...</h1>
+            <p id="taskSubject" style="margin-bottom: 8px;">-</p>
+            <div style="margin-bottom: 12px;">
+                <span style="font-size: 12px; color: var(--text-3);">Kode Tugas:</span>
+                <span id="taskCode" style="font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 600; letter-spacing: 0.15em; margin-left: 6px;">-</span>
+                <span id="taskTypeBadge" class="type-badge" style="margin-left: 10px;">📷 Gambar</span>
+            </div>
+            <div style="display: flex; gap: 16px; font-size: 13px; color: var(--text-2); margin-bottom: 12px; flex-wrap: wrap;">
+                <span>Dibuat: <strong id="taskDate">-</strong></span>
+                <span>Deadline: <strong id="taskDeadline" style="color: var(--error);">-</strong></span>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <span style="font-size: 12px; color: var(--text-3);">Target Kelas:</span>
+                <div id="taskTargetClasses" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;"></div>
+            </div>
+            <p id="taskDescription" style="font-size:13px;color:var(--text-2);white-space:pre-line;margin-bottom:16px;display:none;"></p>
+            <div style="padding: 12px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border);">
+                <label style="margin-bottom: 4px; font-size: 12px;">Link untuk siswa</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="shareLink" readonly>
+                    <button onclick="copyLink()" class="btn btn-inline">Salin</button>
+                    <button onclick="showQRCode()" class="btn btn-outline btn-inline">QR</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-2" style="padding:14px 16px;">
+            <div style="display:flex;gap:16px;justify-content:center;text-align:center;">
+                <div>
+                    <div id="statTotal" style="font-size:20px;font-weight:600;">0</div>
+                    <div style="font-size:11px;color:var(--text-3);">Total</div>
+                </div>
+                <div style="border-left:1px solid var(--border);"></div>
+                <div>
+                    <div id="statOnTime" style="font-size:20px;font-weight:600;color:var(--success);">0</div>
+                    <div style="font-size:11px;color:var(--text-3);">Tepat Waktu</div>
+                </div>
+                <div style="border-left:1px solid var(--border);"></div>
+                <div>
+                    <div id="statLate" style="font-size:20px;font-weight:600;color:var(--error);">0</div>
+                    <div style="font-size:11px;color:var(--text-3);">Terlambat</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;" class="mt-2">
+            <h2 style="margin-bottom: 0;">Pengumpulan</h2>
+            <div style="display:flex;gap:6px;">
+                <button id="btnViewAll" class="btn btn-outline btn-inline">Lihat Semua</button>
+                <button id="btnDownloadAll" class="btn btn-accent btn-inline">Unduh Semua</button>
+            </div>
+        </div>
+
+        <h3 class="mt-2" style="color: var(--success);">Tepat Waktu</h3>
+        <div class="card" style="padding: 0;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nama</th>
+                        <th>Kelas</th>
+                        <th>Waktu</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="onTimeList">
+                    <tr><td colspan="4" class="text-center">Memuat...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3 class="mt-2" style="color: var(--error);">Terlambat</h3>
+        <div class="card" style="padding: 0;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nama</th>
+                        <th>Kelas</th>
+                        <th>Waktu</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="lateList">
+                    <tr><td colspan="4" class="text-center">Memuat...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal">
+        <div class="modal-content" style="max-width: 360px; text-align: center;">
+            <h3 id="confirmTitle">Konfirmasi</h3>
+            <p id="confirmMessage" class="mt-1">Apakah Anda yakin?</p>
+            <div style="display: flex; gap: 8px; margin-top: 20px;">
+                <button id="btnConfirmCancel" class="btn btn-outline" style="flex: 1;">Batal</button>
+                <button id="btnConfirmOk" class="btn btn-accent" style="flex: 1;">Ya</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="processingOverlay" class="modal" style="background: rgba(249, 246, 240, 0.92);">
+        <div class="text-center">
+            <div class="loader" style="width: 32px; height: 32px; border-width: 3px;"></div>
+            <h3 class="mt-2">Memproses...</h3>
+            <p id="processingText">Mohon tunggu.</p>
+        </div>
+    </div>
+
+    <div id="qrModal" class="modal">
+        <div class="modal-content" style="max-width: 480px; text-align: center;">
+            <div class="modal-header">
+                <h2>QR Code</h2>
+                <button onclick="closeModal('qrModal')" class="close-btn">&times;</button>
+            </div>
+            <div id="qrContainer" style="display: flex; justify-content: center; padding: 16px 0;"></div>
+            <p style="font-size: 12px; color: var(--text-3); margin-top: 8px;">Siswa dapat scan kode ini untuk mengumpulkan tugas.</p>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const authResult = await checkAuth(true);
+            if (authResult === '__redirect__') return;
+            await loadTaskDetail();
+            mountTeacherSidebar('tasks');
+        });
+
+        function showQRCode() {
+            const link = document.getElementById('shareLink').value;
+            if (!link) return;
+            const container = document.getElementById('qrContainer');
+            container.innerHTML = '';
+            new QRCode(container, {
+                text: link,
+                width: 360,
+                height: 360,
+                colorDark: '#3b5a30',
+                colorLight: '#fffef9',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+            openModal('qrModal');
+        }
+    </script>
+</body>
+</html>
