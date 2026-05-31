@@ -12,14 +12,11 @@ Aplikasi pengumpulan tugas digital untuk guru dan siswa, di-host di **Cloudflare
 | File storage | **R2** |
 | Deploy frontend | **Cloudflare Pages** |
 
-Kode lama (HTML + `app.js` monolith) ada di folder [`_legacy/`](_legacy/) untuk referensi.
-
 ## Struktur proyek
 
 ```
 apps/web/          → SPA React (guru, siswa, admin)
 workers/api/       → API Hono + D1 + R2
-_legacy/           → versi vanilla JS sebelumnya
 ```
 
 ## Setup lokal
