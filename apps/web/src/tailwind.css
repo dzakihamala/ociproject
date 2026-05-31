@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
+
+  --color-bg: #f9f6f0;
+  --color-surface: #fffef9;
+  --color-text: #4a4030;
+  --color-text-2: #8a7a5a;
+  --color-text-3: #a89a7a;
+  --color-border: #e0d8c8;
+  --color-border-2: #cfc5b0;
+  --color-primary: #6b8f5e;
+  --color-accent: #6b8f5e;
+  --color-green-dark: #3b5a30;
+  --color-green-pale: #eef3e8;
+  --color-accent-warm: #c8a96e;
+  --color-error: #c0392b;
+  --color-success: #6b8f5e;
+
+  --radius-card: 12px;
+  --radius-btn: 8px;
+  --radius-input: 8px;
+  --radius-modal: 14px;
+  --radius-badge: 20px;
+  --radius-chip: 8px;
+
+  --shadow-sm: 0 1px 3px rgba(74, 64, 48, 0.06);
+  --shadow-md: 0 4px 12px rgba(74, 64, 48, 0.07);
+  --shadow-lg: 0 8px 28px rgba(74, 64, 48, 0.10);
+
+  --animate-modal-slide-in: modalSlideIn 0.25s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
