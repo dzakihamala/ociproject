@@ -1,6 +1,5 @@
 const ADMIN_WHATSAPP_PHONE = '6281364254694';
 const SESSION_EMAIL = 'teacher_login_email';
-const SESSION_PASSWORD = 'teacher_login_password';
 
 function readAuthToken(): string | null {
   return localStorage.getItem('auth_token');
@@ -19,32 +18,24 @@ function emailFromJwt(token: string | null): string | null {
   }
 }
 
-/** Simpan kredensial sesi untuk template WA (sessionStorage, hilang saat tab ditutup / logout). */
-export function saveTeacherLoginSession(email: string, password: string) {
+export function saveTeacherLoginSession(email: string) {
   sessionStorage.setItem(SESSION_EMAIL, email.trim());
-  sessionStorage.setItem(SESSION_PASSWORD, password);
 }
 
 export function clearTeacherLoginSession() {
   sessionStorage.removeItem(SESSION_EMAIL);
-  sessionStorage.removeItem(SESSION_PASSWORD);
 }
 
 export function getTeacherLoginEmail(): string {
   return sessionStorage.getItem(SESSION_EMAIL) || emailFromJwt(readAuthToken()) || '';
 }
 
-export function getTeacherLoginPassword(): string {
-  return sessionStorage.getItem(SESSION_PASSWORD) || '';
-}
-
-export function buildAdminWhatsAppMessage(email?: string, password?: string): string {
+export function buildAdminWhatsAppMessage(email?: string): string {
   const e = email ?? getTeacherLoginEmail();
-  const p = password ?? getTeacherLoginPassword();
-  return `email: ${e}\npassword: ${p}\npesan:\n`;
+  return `email: ${e}\npesan:\n`;
 }
 
-export function buildAdminWhatsAppUrl(email?: string, password?: string): string {
-  const text = buildAdminWhatsAppMessage(email, password);
+export function buildAdminWhatsAppUrl(email?: string): string {
+  const text = buildAdminWhatsAppMessage(email);
   return `https://wa.me/${ADMIN_WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`;
 }

@@ -15,6 +15,7 @@ import {
   checkSubmissionRateLimits,
   clientIp,
 } from './lib/submitThrottle';
+import { checkAdminRateLimit } from './lib/adminThrottle';
 import {
   deleteSubmissionR2Files,
   fileMatchesSubmissionType,
@@ -46,6 +47,25 @@ async function requireAuth(c: { req: { header: (n: string) => string | undefined
 function requireAdminKey(c: { req: { header: (n: string) => string | undefined }; env: Env }) {
   const key = c.req.header('X-Admin-Key');
   return !!(key && key === c.env.SETUP_KEY);
+}
+
+async function requireAdminAccess(
+  c: { req: { header: (n: string) => string | undefined }; env: Env },
+): Promise<Response | null> {
+  if (!requireAdminKey(c)) {
+    return new Response(JSON.stringify({ error: 'Akses ditolak' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  const rate = await checkAdminRateLimit(c.env, clientIp(c.req));
+  if (!rate.ok) {
+    return new Response(JSON.stringify({ error: 'Terlalu banyak permintaan. Coba lagi nanti.' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json', 'Retry-After': String(rate.retryAfterSec) },
+    });
+  }
+  return null;
 }
 
 async function removeOtherStudentSubmissions(
@@ -524,7 +544,8 @@ app.get('/api/storage/usage', async (c) => {
 });
 
 app.get('/api/admin/teachers', async (c) => {
-  if (!requireAdminKey(c)) return c.json({ error: 'Akses ditolak' }, 403);
+  const access = await requireAdminAccess(c);
+  if (access) return access;
   const result = await c.env.DB.prepare(
     'SELECT id, email, created_at FROM teachers ORDER BY created_at DESC',
   ).all();
@@ -532,7 +553,8 @@ app.get('/api/admin/teachers', async (c) => {
 });
 
 app.post('/api/admin/teachers', async (c) => {
-  if (!requireAdminKey(c)) return c.json({ error: 'Akses ditolak' }, 403);
+  const access = await requireAdminAccess(c);
+  if (access) return access;
   const { email, password } = await c.req.json<{ email: string; password: string }>();
   if (!email || !password) return c.json({ error: 'Email dan password wajib diisi' }, 400);
   if (password.length < 8) return c.json({ error: 'Password minimal 8 karakter' }, 400);
@@ -549,7 +571,8 @@ app.post('/api/admin/teachers', async (c) => {
 });
 
 app.put('/api/admin/teachers/:id', async (c) => {
-  if (!requireAdminKey(c)) return c.json({ error: 'Akses ditolak' }, 403);
+  const access = await requireAdminAccess(c);
+  if (access) return access;
   const { id } = c.req.param();
   const { email, password } = await c.req.json<{ email?: string; password?: string }>();
   if (!email && !password) return c.json({ error: 'Tidak ada data yang diubah' }, 400);
@@ -579,7 +602,8 @@ app.put('/api/admin/teachers/:id', async (c) => {
 });
 
 app.delete('/api/admin/teachers/:id', async (c) => {
-  if (!requireAdminKey(c)) return c.json({ error: 'Akses ditolak' }, 403);
+  const access = await requireAdminAccess(c);
+  if (access) return access;
   const { id } = c.req.param();
   const teacher = await c.env.DB.prepare('SELECT id FROM teachers WHERE id = ?').bind(id).first();
   if (!teacher) return c.json({ error: 'Akun guru tidak ditemukan' }, 404);

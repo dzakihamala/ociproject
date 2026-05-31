@@ -59,7 +59,7 @@ export function HomePage() {
       });
       setToken(data.token);
       localStorage.setItem('teacher_id', data.teacher_id);
-      saveTeacherLoginSession(email.trim(), password);
+      saveTeacherLoginSession(email.trim());
       setAuthCached(true);
       prefetchTeacherShell();
       prefetchDashboard();
