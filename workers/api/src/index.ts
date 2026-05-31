@@ -299,24 +299,22 @@ app.post('/api/tasks', async (c) => {
       });
       file_url = `${c.env.TASK_FILES_PUBLIC_URL}/${fileName}`;
     }
-    let task_code = '';
-    let codeExists = true;
-    let codeAttempts = 0;
-    while (codeExists) {
-      if (++codeAttempts > 50) return c.json({ error: 'Gagal membuat kode tugas unik' }, 500);
-      task_code = String(Math.floor(1e5 + Math.random() * 9e5));
-      const existing = await c.env.DB.prepare('SELECT id FROM tasks WHERE task_code = ?')
-        .bind(task_code)
-        .first();
-      codeExists = !!existing;
-    }
     const id = generateId();
-    await c.env.DB.prepare(
-      `INSERT INTO tasks (id, teacher_id, title, description, subject, deadline, file_url, task_code, submission_type)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(id, payload.sub, title, description, subject, deadline, file_url, task_code, submission_type)
-      .run();
+    let task_code = '';
+    for (let attempt = 0; attempt < 50; attempt++) {
+      task_code = String(Math.floor(1e5 + Math.random() * 9e5));
+      try {
+        await c.env.DB.prepare(
+          `INSERT INTO tasks (id, teacher_id, title, description, subject, deadline, file_url, task_code, submission_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+          .bind(id, payload.sub, title, description, subject, deadline, file_url, task_code, submission_type)
+          .run();
+        break;
+      } catch {
+        if (attempt === 49) return c.json({ error: 'Gagal membuat kode tugas unik. Silakan coba lagi.' }, 409);
+      }
+    }
     const classesVal = formData.get('classes');
     if (classesVal) {
       let classIds: string[];
@@ -475,11 +473,12 @@ app.post('/api/submissions', async (c) => {
       fileUrls.push(`${c.env.SUBMISSION_FILES_PUBLIC_URL}/${fileName}`);
     }
     const id = generateId();
+    const totalBytes = uploadFiles.reduce((sum, f) => sum + f.size, 0);
     await c.env.DB.prepare(
-      `INSERT INTO submissions (id, task_id, student_name, student_class, file_url, student_note)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO submissions (id, task_id, student_name, student_class, file_url, student_note, byte_size)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-      .bind(id, task_id, trimmedName, trimmedClass, JSON.stringify(fileUrls), student_note)
+      .bind(id, task_id, trimmedName, trimmedClass, JSON.stringify(fileUrls), student_note, totalBytes)
       .run();
     const replacedCount = await removeOtherStudentSubmissions(
       c.env,
@@ -518,24 +517,13 @@ app.get('/api/storage/usage', async (c) => {
   for (const row of teacherTasks.results ?? []) {
     taskFilesBytes += await objectBytes(c.env.TASK_FILES, row.file_url);
   }
-  const teacherSubs = await c.env.DB.prepare(
-    `SELECT s.file_url FROM submissions s
+  const subByteResult = await c.env.DB.prepare(
+    `SELECT COALESCE(SUM(s.byte_size), 0) AS total FROM submissions s
      JOIN tasks t ON s.task_id = t.id WHERE t.teacher_id = ?`,
   )
     .bind(payload.sub)
-    .all<{ file_url: string }>();
-  let submissionFilesBytes = 0;
-  for (const row of teacherSubs.results ?? []) {
-    let urls: string[] = [];
-    try {
-      urls = JSON.parse(row.file_url);
-    } catch {
-      urls = row.file_url ? [row.file_url] : [];
-    }
-    for (const url of urls) {
-      submissionFilesBytes += await objectBytes(c.env.SUBMISSION_FILES, url);
-    }
-  }
+    .first<{ total: number }>();
+  const submissionFilesBytes = subByteResult?.total ?? 0;
   return c.json({
     used_bytes: taskFilesBytes + submissionFilesBytes,
     task_files_bytes: taskFilesBytes,
