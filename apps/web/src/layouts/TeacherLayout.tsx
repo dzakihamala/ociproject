@@ -1,20 +1,11 @@
 import { useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { clearToken } from '../api/client';
 import { clearAuthCache, clearDataCache } from '../lib/dataCache';
-import { ClassesPage } from '../pages/ClassesPage';
-import { DashboardPage } from '../pages/DashboardPage';
-import { TaskDetailPage } from '../pages/TaskDetailPage';
 import { buildAdminWhatsAppUrl } from '../lib/contact';
 import { prefetchClasses, prefetchDashboard, prefetchTeacherShell } from '../lib/prefetch';
 
 export function TeacherLayout() {
-  const { pathname } = useLocation();
-  const isDashboard = pathname === '/dashboard';
-  const isClasses = pathname === '/kelas';
-  const isDetail = pathname.startsWith('/detail/');
-  const detailTaskId = isDetail ? pathname.split('/')[2] : '';
-
   useEffect(() => {
     prefetchTeacherShell();
   }, []);
@@ -61,19 +52,7 @@ export function TeacherLayout() {
       </aside>
       <main className="main-content">
         <div className="container">
-          <div className="teacher-page-stack">
-            <div className="teacher-page-layer" hidden={!isDashboard} aria-hidden={!isDashboard}>
-              <DashboardPage />
-            </div>
-            <div className="teacher-page-layer" hidden={!isClasses} aria-hidden={!isClasses}>
-              <ClassesPage />
-            </div>
-            {isDetail && detailTaskId && (
-              <div className="teacher-page-layer teacher-page-layer-detail">
-                <TaskDetailPage key={detailTaskId} />
-              </div>
-            )}
-          </div>
+          <Outlet />
         </div>
       </main>
     </div>
