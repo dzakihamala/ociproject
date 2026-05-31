@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import flatpickr from 'flatpickr';
 import { Indonesian } from 'flatpickr/dist/l10n/id.js';
 import { useEffect, useRef, useState } from 'react';
@@ -8,10 +9,8 @@ import { ClassTargetPicker } from '../components/ClassTargetPicker';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { ProcessingOverlay } from '../components/ProcessingOverlay';
 import { useToast } from '../context/ToastContext';
-import { useCachedQuery } from '../hooks/useCachedQuery';
-import { getCache, invalidateCache } from '../lib/dataCache';
 import { downloadAllTasksZip } from '../lib/downloads';
-import { CACHE_KEYS, fetchDashboard, prefetchTaskDetail, type DashboardData } from '../lib/prefetch';
+import { fetchDashboard, fetchTaskDetail, queryClient, queryKeys, type DashboardData } from '../lib/queryClient';
 import type { Task } from '../types';
 import { formatDate } from '../types';
 
@@ -19,15 +18,15 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { showToast } = useToast();
-  const { data: dashboard, loading, setData } = useCachedQuery(CACHE_KEYS.dashboard, fetchDashboard);
+  const qc = useQueryClient();
+
+  const { data: dashboard, isLoading } = useQuery({
+    queryKey: queryKeys.dashboard,
+    queryFn: fetchDashboard,
+  });
   const tasks = dashboard?.tasks ?? [];
   const storage = dashboard?.storage ?? null;
 
-  useEffect(() => {
-    if (pathname !== '/dashboard') return;
-    const cached = getCache<DashboardData>(CACHE_KEYS.dashboard);
-    if (cached) setData(cached);
-  }, [pathname, setData]);
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState('');
@@ -40,6 +39,14 @@ export function DashboardPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const deadlineRef = useRef<HTMLInputElement>(null);
   const fpRef = useRef<flatpickr.Instance | null>(null);
+
+  useEffect(() => {
+    if (pathname !== '/dashboard') return;
+    const cached = qc.getQueryData<DashboardData>(queryKeys.dashboard);
+    if (cached) {
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+    }
+  }, [pathname, qc]);
 
   useEffect(() => {
     if (showCreate) {
@@ -72,7 +79,21 @@ export function DashboardPage() {
     };
   }, [showCreate]);
 
-  async function createTask(e: React.FormEvent) {
+  const createMutation = useMutation({
+    mutationFn: async (fd: FormData) => apiRequest<{ task: Task }>('/api/tasks', { method: 'POST', body: fd }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      queryClient.invalidateQueries({ queryKey: ['task'] });
+      queryClient.prefetchQuery({ queryKey: queryKeys.task(data.task.id), queryFn: () => fetchTaskDetail(data.task.id) });
+      setShowCreate(false);
+      navigate(`/detail/${data.task.id}`);
+    },
+    onError: (err) => {
+      showToast(err instanceof Error ? err.message : 'Gagal membuat tugas', 'error');
+    },
+  });
+
+  function handleCreateTask(e: React.FormEvent) {
     e.preventDefault();
     const deadlineValue = (fpRef.current?.input as HTMLInputElement | undefined)?.value || deadline;
     if (!title.trim() || !subject.trim() || !deadlineValue) {
@@ -87,17 +108,7 @@ export function DashboardPage() {
     if (description.trim()) fd.append('description', description.trim());
     if (selectedClassIds.length) fd.append('classes', JSON.stringify(selectedClassIds));
     if (attachment) fd.append('file', attachment);
-
-    try {
-      const data = await apiRequest<{ task: Task }>('/api/tasks', { method: 'POST', body: fd });
-      invalidateCache(CACHE_KEYS.dashboard);
-      invalidateCache(/^task:/);
-      prefetchTaskDetail(data.task.id);
-      setShowCreate(false);
-      navigate(`/detail/${data.task.id}`);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Gagal membuat tugas', 'error');
-    }
+    createMutation.mutate(fd);
   }
 
   const totalBytes = storage?.used_bytes || 0;
@@ -152,9 +163,8 @@ export function DashboardPage() {
           for (const task of tasks) {
             await apiRequest(`/api/tasks/${task.id}`, { method: 'DELETE' });
           }
-          invalidateCache(CACHE_KEYS.dashboard);
-          invalidateCache(/^task:/);
-          setData({ tasks: [], classes: dashboard?.classes ?? [], storage: dashboard?.storage ?? { used_bytes: 0 } });
+          queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+          queryClient.invalidateQueries({ queryKey: ['task'] });
           showToast('Semua tugas berhasil dihapus!', 'success');
         }, 'Menghapus semua tugas...'),
     );
@@ -219,7 +229,7 @@ export function DashboardPage() {
         </button>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="loader page-loader" />
       ) : tasks.length === 0 ? (
         <p className="empty-state">Belum ada tugas yang dibuat.</p>
@@ -231,8 +241,8 @@ export function DashboardPage() {
               to={`/detail/${task.id}`}
               viewTransition
               className="task-item"
-              onMouseEnter={() => prefetchTaskDetail(task.id)}
-              onFocus={() => prefetchTaskDetail(task.id)}
+              onMouseEnter={() => { queryClient.prefetchQuery({ queryKey: queryKeys.task(task.id), queryFn: () => fetchTaskDetail(task.id) }); }}
+              onFocus={() => { queryClient.prefetchQuery({ queryKey: queryKeys.task(task.id), queryFn: () => fetchTaskDetail(task.id) }); }}
             >
               <div className="task-info">
                 <h3>{task.title}</h3>
@@ -255,7 +265,7 @@ export function DashboardPage() {
                 &times;
               </button>
             </div>
-            <form onSubmit={createTask}>
+            <form onSubmit={handleCreateTask}>
               <div className="form-group">
                 <label htmlFor="taskTitleInput">Judul</label>
                 <input
@@ -314,8 +324,8 @@ export function DashboardPage() {
                 <label>Lampiran (opsional)</label>
                 <input type="file" onChange={(e) => setAttachment(e.target.files?.[0] ?? null)} />
               </div>
-              <button type="submit" className="btn btn-accent">
-                Buat Tugas
+              <button type="submit" className="btn btn-accent" disabled={createMutation.isPending}>
+                {createMutation.isPending ? 'Membuat...' : 'Buat Tugas'}
               </button>
             </form>
           </div>

@@ -6,15 +6,14 @@ import { MediaViewer } from '../components/MediaViewer';
 import { ProcessingOverlay } from '../components/ProcessingOverlay';
 import { QrModal } from '../components/QrModal';
 import { useToast } from '../context/ToastContext';
-import { useCachedQuery } from '../hooks/useCachedQuery';
-import { invalidateCache } from '../lib/dataCache';
+import { useQuery } from '@tanstack/react-query';
 import {
   buildDownloadIndex,
   downloadAllSubmissionsForTask,
   downloadStudentSubmission,
   type MediaGroup,
 } from '../lib/downloads';
-import { CACHE_KEYS, fetchTaskDetail, removeTaskFromDashboardCache } from '../lib/prefetch';
+import { fetchTaskDetail, queryClient, queryKeys, removeTaskFromDashboardCache } from '../lib/queryClient';
 import {
   type ClassRoster,
   computeNotSubmitted,
@@ -28,12 +27,11 @@ export function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const cacheKey = id ? CACHE_KEYS.task(id) : '';
-  const { data, loading, error } = useCachedQuery(
-    cacheKey,
-    () => fetchTaskDetail(id!),
-    !!id,
-  );
+  const { data, isLoading, error } = useQuery({
+    queryKey: queryKeys.task(id!),
+    queryFn: () => fetchTaskDetail(id!),
+    enabled: !!id,
+  });
 
   const task = data?.task ?? null;
   const subs = data?.submissions ?? [];
@@ -104,7 +102,7 @@ export function TaskDetailPage() {
   const downloadIndex = useMemo(() => buildDownloadIndex(filteredSubs), [filteredSubs]);
 
   if (!task) {
-    if (loading) return <div className="loader page-loader" />;
+    if (isLoading) return <div className="loader page-loader" />;
     return (
       <div className="card" style={{ marginTop: 24 }}>
         <h2 style={{ marginBottom: 8 }}>Tugas tidak dapat dimuat</h2>
@@ -197,7 +195,7 @@ export function TaskDetailPage() {
                   const deletedId = task.id;
                   await apiRequest(`/api/tasks/${deletedId}`, { method: 'DELETE' });
                   removeTaskFromDashboardCache(deletedId);
-                  invalidateCache(CACHE_KEYS.task(deletedId));
+                  queryClient.invalidateQueries({ queryKey: queryKeys.task(deletedId) });
                   showToast('Tugas berhasil dihapus.', 'success');
                   navigate('/dashboard');
                 }, 'Menghapus tugas...'),

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchClasses } from '../lib/prefetch';
+import { fetchClasses } from '../lib/queryClient';
 import type { ClassRow } from '../types';
 
 type Props = {

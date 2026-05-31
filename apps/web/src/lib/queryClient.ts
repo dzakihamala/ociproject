@@ -1,6 +1,13 @@
+import { QueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../api/client';
 import type { ClassRow, Submission, Task } from '../types';
-import { getCache, prefetch, setCache } from './dataCache';
+
+export const queryKeys = {
+  dashboard: ['dashboard'] as const,
+  classes: ['classes'] as const,
+  task: (id: string) => ['task', id] as const,
+  taskByCode: (code: string) => ['task', 'code', code] as const,
+} as const;
 
 export type DashboardData = {
   tasks: Task[];
@@ -13,11 +20,15 @@ export type TaskDetailData = {
   submissions: Submission[];
 };
 
-export const CACHE_KEYS = {
-  dashboard: 'dashboard',
-  classes: 'classes',
-  task: (id: string) => `task:${id}`,
-} as const;
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      retry: 1,
+    },
+  },
+});
 
 export async function fetchDashboard(): Promise<DashboardData> {
   const [t, c, s] = await Promise.all([
@@ -46,30 +57,15 @@ export async function fetchTaskDetail(id: string): Promise<TaskDetailData> {
   return { task: t.task, submissions: s.submissions || [] };
 }
 
-/** Hapus satu tugas dari cache dashboard (setelah delete, tanpa refresh penuh). */
+export async function fetchTaskByCode(code: string): Promise<Task> {
+  const data = await apiRequest<{ task: Task }>(`/api/tasks/code/${code}`);
+  if (!data.task) throw new Error('Tugas tidak ditemukan');
+  return data.task;
+}
+
 export function removeTaskFromDashboardCache(taskId: string) {
-  const cached = getCache<DashboardData>(CACHE_KEYS.dashboard);
-  if (!cached) return;
-  setCache(CACHE_KEYS.dashboard, {
-    ...cached,
-    tasks: cached.tasks.filter((t) => t.id !== taskId),
+  queryClient.setQueryData<DashboardData>(queryKeys.dashboard, (old) => {
+    if (!old) return old;
+    return { ...old, tasks: old.tasks.filter((t) => t.id !== taskId) };
   });
-}
-
-export function prefetchDashboard() {
-  prefetch(CACHE_KEYS.dashboard, fetchDashboard);
-}
-
-export function prefetchClasses() {
-  prefetch(CACHE_KEYS.classes, fetchClasses);
-}
-
-export function prefetchTaskDetail(id: string) {
-  if (!id) return;
-  prefetch(CACHE_KEYS.task(id), () => fetchTaskDetail(id));
-}
-
-export function prefetchTeacherShell() {
-  prefetchDashboard();
-  prefetchClasses();
 }

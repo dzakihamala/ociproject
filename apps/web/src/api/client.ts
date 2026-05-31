@@ -1,5 +1,5 @@
 import { clearTeacherLoginSession } from '../lib/contact';
-import { clearAuthCache, clearDataCache } from '../lib/dataCache';
+import { clearAuthCache } from '../lib/authCache';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
@@ -37,7 +37,7 @@ export function clearToken() {
   localStorage.removeItem('teacher_id');
   clearTeacherLoginSession();
   clearAuthCache();
-  clearDataCache();
+  import('../lib/queryClient').then(({ queryClient }) => queryClient.clear());
 }
 
 export async function apiRequest<T = unknown>(

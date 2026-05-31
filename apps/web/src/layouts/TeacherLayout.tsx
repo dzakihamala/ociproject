@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { clearToken } from '../api/client';
-import { clearAuthCache, clearDataCache } from '../lib/dataCache';
+import { clearAuthCache } from '../lib/authCache';
 import { buildAdminWhatsAppUrl } from '../lib/contact';
-import { prefetchClasses, prefetchDashboard, prefetchTeacherShell } from '../lib/prefetch';
+import { fetchClasses, fetchDashboard, queryClient, queryKeys } from '../lib/queryClient';
 
 export function TeacherLayout() {
   useEffect(() => {
-    prefetchTeacherShell();
+    queryClient.prefetchQuery({ queryKey: queryKeys.dashboard, queryFn: fetchDashboard });
+    queryClient.prefetchQuery({ queryKey: queryKeys.classes, queryFn: fetchClasses });
   }, []);
 
   return (
@@ -19,8 +20,8 @@ export function TeacherLayout() {
             to="/dashboard"
             viewTransition
             className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
-            onMouseEnter={prefetchDashboard}
-            onFocus={prefetchDashboard}
+            onMouseEnter={() => { queryClient.prefetchQuery({ queryKey: queryKeys.dashboard, queryFn: fetchDashboard }); }}
+            onFocus={() => { queryClient.prefetchQuery({ queryKey: queryKeys.dashboard, queryFn: fetchDashboard }); }}
           >
             Daftar Tugas
           </NavLink>
@@ -28,8 +29,8 @@ export function TeacherLayout() {
             to="/kelas"
             viewTransition
             className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
-            onMouseEnter={prefetchClasses}
-            onFocus={prefetchClasses}
+            onMouseEnter={() => { queryClient.prefetchQuery({ queryKey: queryKeys.classes, queryFn: fetchClasses }); }}
+            onFocus={() => { queryClient.prefetchQuery({ queryKey: queryKeys.classes, queryFn: fetchClasses }); }}
           >
             Kelas
           </NavLink>
@@ -42,7 +43,7 @@ export function TeacherLayout() {
             onClick={() => {
               clearToken();
               clearAuthCache();
-              clearDataCache();
+              queryClient.clear();
               window.location.href = '/';
             }}
           >

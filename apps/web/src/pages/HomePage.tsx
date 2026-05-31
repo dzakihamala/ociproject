@@ -1,10 +1,11 @@
+import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, apiRequest, clearToken, getToken, setToken } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { saveTeacherLoginSession } from '../lib/contact';
-import { setAuthCached } from '../lib/dataCache';
-import { prefetchDashboard, prefetchTeacherShell } from '../lib/prefetch';
+import { setAuthCached } from '../lib/authCache';
+import { fetchDashboard, fetchClasses, queryClient, queryKeys } from '../lib/queryClient';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -12,7 +13,6 @@ export function HomePage() {
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -24,13 +24,33 @@ export function HomePage() {
       });
   }, []);
 
+  const loginMutation = useMutation({
+    mutationFn: async (payload: { email: string; password: string }) => {
+      return apiRequest<{ token: string; teacher_id: string }>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: (data) => {
+      setToken(data.token);
+      localStorage.setItem('teacher_id', data.teacher_id);
+      saveTeacherLoginSession(email.trim());
+      setAuthCached(true);
+      queryClient.prefetchQuery({ queryKey: queryKeys.dashboard, queryFn: fetchDashboard });
+      queryClient.prefetchQuery({ queryKey: queryKeys.classes, queryFn: fetchClasses });
+      navigate('/dashboard');
+    },
+    onError: (e) => {
+      showToast(e instanceof Error ? e.message : 'Login gagal', 'error');
+    },
+  });
+
   async function goToTask() {
     const trimmed = code.trim();
     if (!/^\d{6}$/.test(trimmed)) {
       showToast('Masukkan kode 6 digit yang valid.', 'error');
       return;
     }
-    setBusy(true);
     try {
       const res = await fetch(`${API_BASE}/api/tasks/code/${trimmed}`);
       const data = await res.json();
@@ -41,33 +61,6 @@ export function HomePage() {
       navigate(`/kumpul?code=${trimmed}`);
     } catch {
       showToast('Gagal menghubungi server.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleLogin() {
-    if (!email.trim() || !password) {
-      showToast('Email dan password wajib diisi.', 'error');
-      return;
-    }
-    setBusy(true);
-    try {
-      const data = await apiRequest<{ token: string; teacher_id: string }>('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-      setToken(data.token);
-      localStorage.setItem('teacher_id', data.teacher_id);
-      saveTeacherLoginSession(email.trim());
-      setAuthCached(true);
-      prefetchTeacherShell();
-      prefetchDashboard();
-      navigate('/dashboard');
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Login gagal', 'error');
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -107,8 +100,8 @@ export function HomePage() {
               style={{ textAlign: 'center', fontFamily: "'DM Mono', monospace", fontSize: 20, letterSpacing: '0.2em', padding: 14 }}
             />
           </div>
-          <button type="submit" className="btn" disabled={busy}>
-            {busy ? 'Mencari...' : '🔍 Cari Tugas'}
+          <button type="submit" className="btn" disabled={loginMutation.isPending}>
+            {loginMutation.isPending ? 'Mencari...' : '🔍 Cari Tugas'}
           </button>
         </form>
       </div>
@@ -120,7 +113,11 @@ export function HomePage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleLogin();
+            if (!email.trim() || !password) {
+              showToast('Email dan password wajib diisi.', 'error');
+              return;
+            }
+            loginMutation.mutate({ email: email.trim(), password });
           }}
         >
           <div className="form-group">
@@ -131,8 +128,8 @@ export function HomePage() {
             <label htmlFor="password">Password</label>
             <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="Masukkan password" />
           </div>
-          <button type="submit" className="btn mt-1" disabled={busy}>
-            {busy ? 'Memproses...' : 'Masuk'}
+          <button type="submit" className="btn mt-1" disabled={loginMutation.isPending}>
+            {loginMutation.isPending ? 'Memproses...' : 'Masuk'}
           </button>
         </form>
         <p style={{ marginTop: 14, fontSize: 13, color: 'var(--text-3)' }}>
